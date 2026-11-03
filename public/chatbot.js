@@ -722,7 +722,7 @@
       '.launcher:focus-visible{outline-color:var(--fg)}',
 
       // Mobile Responsive Viewport Support
-      '@media(max-width:480px){.root .panel{inset:0;width:100%;height:100%;border-radius:0;border:0}textarea{font-size:16px}}',
+      '@media(max-width:480px){.root .panel{inset:0;width:100%;height:100dvh;border-radius:0;border:0}textarea{font-size:16px}}',
 
       // Reduced Motion Accessibility
       '@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}'
