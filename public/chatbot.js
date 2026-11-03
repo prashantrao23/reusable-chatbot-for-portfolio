@@ -697,7 +697,7 @@
 
       // Starter Chips
       '.chips{display:flex;flex-wrap:wrap;gap:8px;padding:0 16px 12px}',
-      '.chip{padding:7px 12px;border:1px solid var(--line);border-radius:999px;background:transparent;color:var(--fg);font-size:13.5px}',
+      '.chip{padding:7px 12px;border:1px solid var(--line);border-radius:999px;background:transparent;color:#fff;font-size:13.5px}',
       '.chip:hover{border-color:var(--accent);color:var(--accent)}',
 
       // Input Composer Form
