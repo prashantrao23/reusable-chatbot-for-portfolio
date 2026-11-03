@@ -206,8 +206,36 @@ function ownerName(resume) {
 const app = express();
 if (process.env.TRUST_PROXY) app.set('trust proxy', 1);
 
-const allowedOrigins = (process.env.ALLOWED_ORIGINS || '').split(',').map((s) => s.trim()).filter(Boolean);
+// Which websites may use the chatbot. Trailing slashes are ignored, so
+// "https://yourname.dev/" and "https://yourname.dev" both work.
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
+  .split(',')
+  .map((s) => s.trim().replace(/\/+$/, ''))
+  .filter(Boolean);
+
+if (!allowedOrigins.length) {
+  console.warn(
+    '[Security Warning] ALLOWED_ORIGINS is not set, so ANY website can use this chatbot and spend your AI quota.\n' +
+    '                   Set it to your portfolio address, e.g. ALLOWED_ORIGINS=https://yourname.dev'
+  );
+}
+
 app.use(cors(allowedOrigins.length ? { origin: allowedOrigins } : {}));
+
+// CORS only asks the visitor's browser to block other sites. This check makes the server refuse them too.
+// Allowed: the listed origins, this server's own site (e.g. /demo.html), and requests that carry no
+// Origin header (curl, server-to-server). Those last ones are not stopped here: the rate limit and the
+// daily cap are what protect you from them.
+app.use('/api', (req, res, next) => {
+  if (!allowedOrigins.length) return next();
+  const origin = req.get('origin');
+  if (!origin || allowedOrigins.includes(origin)) return next();
+  try {
+    if (new URL(origin).host === req.get('host')) return next();
+  } catch { /* malformed Origin header: fall through and reject */ }
+  res.status(403).json({ error: 'This website is not allowed to use the chatbot.' });
+});
+
 app.use(express.json({ limit: '50kb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
