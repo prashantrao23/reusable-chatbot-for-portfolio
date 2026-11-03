@@ -170,13 +170,75 @@
     launcher.classList.toggle('hidden', open);
 
     if (open) {
+      lockPage(isMobile());
+      fitPanelToViewport();
       input.focus();
       log.scrollTop = log.scrollHeight;
     } else {
+      lockPage(false);
+      panel.style.top = panel.style.height = panel.style.bottom = '';   // hand sizing back to the CSS
       place(false);
       launcher.focus();
     }
   }
+
+  /* ==========================================================================
+   * MOBILE KEYBOARD HANDLING
+   * --------------------------------------------------------------------------
+   * On phones the on-screen keyboard does NOT shrink the page: browsers keep the
+   * layout the same size and just cover the bottom of it (or pan the page up).
+   * A full-screen fixed panel would therefore slide out of view or hide its own
+   * input behind the keyboard.
+   *
+   * The Visual Viewport API reports the area that is really visible. While the
+   * chat is open on a phone we size the panel to exactly that area and keep it
+   * pinned to its top edge, and we stop the page behind it from scrolling.
+   * ========================================================================== */
+
+  var vv = window.visualViewport;
+  var pageLock = null;
+
+  function isMobile() {
+    return !!(window.matchMedia && window.matchMedia('(max-width:480px)').matches);
+  }
+
+  /** Stops the website behind the full-screen chat from scrolling (restores it on close). */
+  function lockPage(lock) {
+    var de = document.documentElement, b = document.body;
+    if (lock && !pageLock) {
+      pageLock = { de: de.style.overflow, b: b.style.overflow };
+      de.style.overflow = 'hidden';
+      b.style.overflow = 'hidden';
+    } else if (!lock && pageLock) {
+      de.style.overflow = pageLock.de;
+      b.style.overflow = pageLock.b;
+      pageLock = null;
+    }
+  }
+
+  /** Sizes the full-screen panel to the visible area (above the keyboard). */
+  function fitPanelToViewport() {
+    if (panel.hidden) return;
+    if (!vv || !isMobile()) {
+      panel.style.top = panel.style.height = panel.style.bottom = '';
+      lockPage(false);
+      return;
+    }
+    lockPage(true);
+    panel.style.top = vv.offsetTop + 'px';
+    panel.style.height = vv.height + 'px';
+    panel.style.bottom = 'auto';
+    log.scrollTop = log.scrollHeight;                // keep the latest message above the keyboard
+  }
+
+  if (vv) {
+    vv.addEventListener('resize', fitPanelToViewport);   // keyboard opened or closed
+    vv.addEventListener('scroll', fitPanelToViewport);   // browser panned the page to reveal the input
+  }
+  window.addEventListener('resize', fitPanelToViewport); // rotation, or crossing the phone/desktop breakpoint
+  input.addEventListener('focus', function () {
+    setTimeout(fitPanelToViewport, 300);                 // after the keyboard's slide-in animation
+  });
 
   // Open panel when clicking floating launcher button (ignored right after a drag)
   launcher.addEventListener('click', function () {
@@ -688,7 +750,7 @@
       '.close:hover{background:var(--bot);color:var(--fg)}',
 
       // Message Log & Bubbles
-      '.log{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;scroll-behavior:smooth}',
+      '.log{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:16px;display:flex;flex-direction:column;gap:10px;scroll-behavior:smooth}',
       '.msg{max-width:86%;padding:9px 13px;border-radius:14px;word-wrap:break-word;overflow-wrap:anywhere}',
       '.msg p{margin:0}.msg p+p,.msg p+ul,.msg ul+p{margin-top:6px}',
       '.msg ul{margin:0;padding-left:18px}.msg li{margin:2px 0}',
