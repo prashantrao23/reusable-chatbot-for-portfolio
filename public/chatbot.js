@@ -9,7 +9,8 @@
  *
  * OPTIONAL ATTRIBUTES ON THE SCRIPT TAG:
  *   data-accent="#0f766e"     Custom brand accent color (hex, rgb, or css name)
- *   data-position="left"      Where the button starts, bottom-left or bottom-right (default: "right").
+ *   data-position="left"      Which side the button starts on, "left" or "right" (default: "right").
+ *                             It starts 100px above the bottom of the screen.
  *                             Visitors can drag it up and down along either side of the screen;
  *                             it snaps to the left or right edge and remembers the spot.
  *   data-theme="dark"         Color theme ("auto", "light", or "dark", default: "auto")
@@ -199,14 +200,15 @@
   var POS_KEY = 'portfolio-chat-pos:' + api;
   var EDGES = ['left', 'right'];          // top/bottom are intentionally not allowed
   var ghost = $('.ghost');
-  var dock = { edge: side, pos: 1 };      // default: bottom-left or bottom-right corner
+  var START_BOTTOM = 100;                 // starting distance from the bottom of the screen (px)
+  var dock = { edge: side, pos: null };   // pos null = starting spot (100px above the bottom); becomes a number once the visitor drags it
   var drag = null;
   var suppressClick = false;
 
   // Restore the visitor's last position
   try {
     var savedDock = JSON.parse(localStorage.getItem(POS_KEY) || 'null');
-    if (savedDock && EDGES.indexOf(savedDock.edge) > -1 && isFinite(savedDock.pos)) {
+    if (savedDock && EDGES.indexOf(savedDock.edge) > -1 && savedDock.pos !== null && isFinite(savedDock.pos)) {
       dock = { edge: savedDock.edge, pos: Math.min(1, Math.max(0, +savedDock.pos)) };
     }
   } catch (e) {}
@@ -217,13 +219,21 @@
     return { w: document.documentElement.clientWidth || window.innerWidth, h: window.innerHeight };
   }
 
+  /** Vertical position as a 0-1 fraction. Until the visitor drags the button, it sits START_BOTTOM px above the bottom edge. */
+  function posOf(d, h) {
+    if (d.pos !== null && isFinite(d.pos)) return d.pos;
+    var v = viewport();
+    var spanY = Math.max(1, v.h - h - 2 * MARGIN);
+    return Math.min(1, Math.max(0, (v.h - h - START_BOTTOM - MARGIN) / spanY));
+  }
+
   /** Converts an { edge, pos } dock into left/top pixel coordinates for a w x h button. */
   function dockToXY(d, w, h) {
     var v = viewport();
     var spanY = Math.max(0, v.h - h - 2 * MARGIN);
     return {
       x: d.edge === 'left' ? MARGIN : v.w - w - MARGIN,
-      y: MARGIN + d.pos * spanY
+      y: MARGIN + posOf(d, h) * spanY
     };
   }
 
@@ -251,7 +261,7 @@
     var v = viewport();
     var h = 48;
     var spanY = Math.max(0, v.h - h - 2 * MARGIN);
-    var y = MARGIN + dock.pos * spanY;
+    var y = MARGIN + posOf(dock, h) * spanY;
 
     if (animate) {
       var r = launcher.getBoundingClientRect();
@@ -290,7 +300,7 @@
   /** Tells the CSS which side of the screen the chat panel should open on. */
   function updateAnchor() {
     rootEl.setAttribute('data-h', dock.edge);                       // left or right
-    rootEl.setAttribute('data-v', dock.pos < 0.5 ? 'top' : 'bottom');
+    rootEl.setAttribute('data-v', posOf(dock, 48) < 0.5 ? 'top' : 'bottom');
   }
 
   launcher.addEventListener('pointerdown', function (e) {
